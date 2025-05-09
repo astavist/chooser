@@ -9,13 +9,25 @@ import 'providers/settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => SettingsProvider(prefs),
-      child: const ChooserApp(),
-    ),
-  );
+  
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    runApp(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(prefs),
+        child: const ChooserApp(),
+      ),
+    );
+  } catch (e) {
+    // Shared Preferences başlatılamazsa varsayılan değerlerle devam et
+    print('SharedPreferences error: $e');
+    runApp(
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(SharedPreferences.getInstance()),
+        child: const ChooserApp(),
+      ),
+    );
+  }
 }
 
 class ChooserApp extends StatelessWidget {
