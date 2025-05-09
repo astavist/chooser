@@ -7,7 +7,14 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    // Hata yakalama ekleyelim
+    do {
+      GeneratedPluginRegistrant.register(with: self)
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    } catch {
+      print("Critical error during app launch: \(error)")
+      // Hata durumunda bile uygulamayı devam ettirmeye çalışalım
+      return true
+    }
   }
 }
