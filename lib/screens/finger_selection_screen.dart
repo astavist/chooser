@@ -19,15 +19,30 @@ class _FingerSelectionScreenState extends State<FingerSelectionScreen>
   bool _isSelecting = false;
   List<Color> _colors = [];
   final List<_NumberLabel> _numbers = [];
+  bool _isLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _generateColors();
+    
+    // Debug mesajı
+    print('FingerSelectionScreen başlatılıyor...');
+    
+    // Asenkron işlemler içeren karmaşık işlemler yerine
+    // basit bir başlatma yapalım
+    try {
+      _controller = AnimationController(
+        duration: const Duration(milliseconds: 500),
+        vsync: this,
+      );
+      _generateColors();
+      
+      // Başarılı başlangıç
+      _isLoaded = true;
+      print('FingerSelectionScreen başlatma başarılı');
+    } catch (e) {
+      print('FingerSelectionScreen başlatma hatası: $e');
+    }
   }
 
   @override
@@ -55,6 +70,9 @@ class _FingerSelectionScreenState extends State<FingerSelectionScreen>
       _touchPoints[event.pointer] = _TouchPoint(
         position: event.localPosition,
         color: _colors[_touchPoints.length % _colors.length],
+        scale: _controller.drive(
+          Tween(begin: 1.0, end: 1.2),
+        ),
       );
     });
 
@@ -202,104 +220,234 @@ class _FingerSelectionScreenState extends State<FingerSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Listener(
-            onPointerDown: _handlePointerDown,
-            onPointerMove: _handlePointerMove,
-            onPointerUp: _handlePointerUp,
-            child: Container(
-              color: Colors.transparent,
-              width: double.infinity,
-              height: double.infinity,
-            ),
+    // Ekran başlatılamadıysa basit bir yükleme ekranı gösterelim
+    if (!_isLoaded) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('Yükleniyor...', style: TextStyle(color: Colors.white)),
+            ],
           ),
-          // Touch points
-          for (final point in _touchPoints.entries)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 50),
-              left: point.value.position.dx - 40,
-              top: point.value.position.dy - 40,
-              child: AnimatedScale(
-                duration: const Duration(milliseconds: 200),
-                scale: point.value.scale?.value ?? 1.0,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.transparent,
-                    border: Border.all(
-                      color: point.value.color,
-                      width: 3,
-                    ),
-                  ),
-                  child: Center(
+        ),
+      );
+    }
+    
+    // Normal ekranı render edelim
+    try {
+      // Burada mevcut ekranın build kodu
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Listener(
+          onPointerDown: _handlePointerDown,
+          onPointerMove: _handlePointerMove,
+          onPointerUp: _handlePointerUp,
+          child: Stack(
+            children: [
+              // Touch points
+              for (final point in _touchPoints.entries)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 50),
+                  left: point.value.position.dx - 40,
+                  top: point.value.position.dy - 40,
+                  child: AnimatedScale(
+                    duration: const Duration(milliseconds: 200),
+                    scale: point.value.scale?.value ?? 1.0,
                     child: Container(
-                      width: 50,
-                      height: 50,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: point.value.color,
+                        color: Colors.transparent,
+                        border: Border.all(
+                          color: point.value.color,
+                          width: 3,
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: point.value.color,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              // Number labels for order mode
+              for (final number in _numbers)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 50),
+                  left: number.position.dx - 20,
+                  top: number.position.dy - 60,
+                  child: Text(
+                    number.number.toString(),
+                    style: TextStyle(
+                      color: number.color,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              // Mode button
+              Positioned(
+                left: 16,
+                top: MediaQuery.of(context).padding.top + 16,
+                child: IconButton(
+                  icon: Icon(
+                    _currentMode == Mode.single
+                        ? Icons.person
+                        : _currentMode == Mode.group
+                            ? Icons.group
+                            : Icons.format_list_numbered,
+                    color: Colors.white,
+                  ),
+                  onPressed: _cycleMode,
+                ),
+              ),
+              // Count button
+              if (_currentMode != Mode.order)
+                Positioned(
+                  right: 16,
+                  top: MediaQuery.of(context).padding.top + 16,
+                  child: IconButton(
+                    icon: Text(
+                      _count.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: _cycleCount,
+                  ),
+                ),
+              // Çizim alanı
+              CustomPaint(
+                painter: _TouchPointsPainter(
+                  touchPoints: _touchPoints,
+                ),
+                size: Size.infinite,
+              ),
+              
+              // Sayı etiketleri
+              if (_numbers.isNotEmpty)
+                CustomPaint(
+                  painter: _NumberLabelPainter(
+                    numbers: _numbers,
+                  ),
+                  size: Size.infinite,
+                ),
+                
+              // Mod göstergesi
+              Positioned(
+                top: 40,
+                left: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _cycleMode,
+                  child: Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        _currentMode.displayName(),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          // Number labels for order mode
-          for (final number in _numbers)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 50),
-              left: number.position.dx - 20,
-              top: number.position.dy - 60,
-              child: Text(
-                number.number.toString(),
-                style: TextStyle(
-                  color: number.color,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          // Mode button
-          Positioned(
-            left: 16,
-            top: MediaQuery.of(context).padding.top + 16,
-            child: IconButton(
-              icon: Icon(
-                _currentMode == Mode.single
-                    ? Icons.person
-                    : _currentMode == Mode.group
-                        ? Icons.group
-                        : Icons.format_list_numbered,
-                color: Colors.white,
-              ),
-              onPressed: _cycleMode,
-            ),
-          ),
-          // Count button
-          if (_currentMode != Mode.order)
-            Positioned(
-              right: 16,
-              top: MediaQuery.of(context).padding.top + 16,
-              child: IconButton(
-                icon: Text(
-                  _count.toString(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+              
+              // Sayaç göstergesi
+              Positioned(
+                top: 100,
+                left: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _cycleCount,
+                  child: Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        '$_count',
+                        style: const TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                onPressed: _cycleCount,
               ),
-            ),
-        ],
-      ),
-    );
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      // Herhangi bir render hatası durumunda basit bir hata ekranı gösterelim
+      print('FingerSelectionScreen render hatası: $e');
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: Text('Chooser - Hata'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red),
+              SizedBox(height: 20),
+              Text(
+                'Ekran yüklenirken bir hata oluştu',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    // Ekranı yeniden başlatmayı deneyelim
+                    _isLoaded = false;
+                    initState();
+                  });
+                },
+                child: Text('Yeniden Dene'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 }
 
@@ -327,4 +475,79 @@ class _NumberLabel {
     required this.position,
     required this.color,
   });
+}
+
+class _TouchPointsPainter extends CustomPainter {
+  final Map<int, _TouchPoint> touchPoints;
+
+  _TouchPointsPainter({
+    required this.touchPoints,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final point in touchPoints.values) {
+      final radius = point.isWinner && point.scale != null
+          ? 40.0 * point.scale!.value
+          : 40.0;
+
+      final paint = Paint()
+        ..color = point.color
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(point.position, radius, paint);
+
+      // Kenar çizgisi
+      final borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+
+      canvas.drawCircle(point.position, radius, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class _NumberLabelPainter extends CustomPainter {
+  final List<_NumberLabel> numbers;
+
+  _NumberLabelPainter({
+    required this.numbers,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 24,
+      fontWeight: FontWeight.bold,
+    );
+
+    for (final number in numbers) {
+      final textSpan = TextSpan(
+        text: number.number.toString(),
+        style: textStyle,
+      );
+
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+
+      final offset = Offset(
+        number.position.dx - textPainter.width / 2,
+        number.position.dy - textPainter.height / 2,
+      );
+
+      textPainter.paint(canvas, offset);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 } 

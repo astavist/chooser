@@ -14,6 +14,17 @@ enum Mode {
     }
   }
 
+  String displayName() {
+    switch (this) {
+      case Mode.single:
+        return 'Tekli Seçim';
+      case Mode.group:
+        return 'Grup Seçimi';
+      case Mode.order:
+        return 'Sıralı Seçim';
+    }
+  }
+
   int initialCount() {
     switch (this) {
       case Mode.single:

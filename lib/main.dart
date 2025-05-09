@@ -17,13 +17,6 @@ void main() async {
     print('Stack trace: ${details.stack}');
   };
   
-  // Platformdan gelen hataları yakalamak için
-  PlatformDispatcher.instance.onError = (error, stack) {
-    print('Platform error caught: $error');
-    print('Stack trace: $stack');
-    return true; // Hata işlendi olarak kabul et
-  };
-  
   // Ana uygulamayı try-catch içinde başlat
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
