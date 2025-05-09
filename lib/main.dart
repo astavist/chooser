@@ -21,9 +21,10 @@ void main() async {
   } catch (e) {
     // Shared Preferences başlatılamazsa varsayılan değerlerle devam et
     print('SharedPreferences error: $e');
+    // Geçici bir SharedPreferences nesnesi kullanarak devam et
     runApp(
       ChangeNotifierProvider(
-        create: (_) => SettingsProvider(SharedPreferences.getInstance()),
+        create: (_) => SettingsProvider(null),
         child: const ChooserApp(),
       ),
     );
